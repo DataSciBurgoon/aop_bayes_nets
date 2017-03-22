@@ -55,8 +55,18 @@ bn_test <- grain(plist)
 png("steroidogenesis_network.png", width=5000, height=5000, res=800, pointsize=20)
 plot(bn_test)
 dev.off()
+
+#Test Queries
 querygrain(setEvidence(bn_test, evidence=list(cholesterol="yes", pregnenolone="yes", dhea="no",
                                               androsteinedione="no", hydroxypregnenolone="no",
                                               hydroxyprogesterone="no", testosterone="no")))
 
 querygrain(setEvidence(bn_test, evidence=list(cholesterol="yes", pregnenolone="yes")))
+
+
+#Queries Using Agnes' data
+#Ketoconazole
+querygrain(setEvidence(bn_test, evidence=list(hydroxyprogesterone="no",
+                                              androsteinedione="no", testosterone="no",
+                                              estrone="no")))
+
