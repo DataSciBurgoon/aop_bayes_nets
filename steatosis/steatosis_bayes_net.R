@@ -7,8 +7,8 @@ fxr <- cptable(~ fxr | nrf2, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
 shp <- cptable(~ shp | fxr, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
 lxr <- cptable(~ lxr | shp, values=c(0.05, 0.95, 0.95, 0.05), levels=yn)
 ppar_alpha <- cptable(~ ppara | fxr+shp+lxr, 
-                      values=c(0.50, 0.50, 0.50, 0.50, 0.50, 0.50, 
-                               0.01, 0.99, 0.99, 0.01, 0.50, 0.50),
+                      values=c(0.50, 0.50, 0.50, 0.50, 0.50, 0.50, 0.01, 0.99,
+                               0.99, 0.01, 0.50, 0.50, 0.50, 0.50, 0.01, 0.99),
                       levels=yn)
 hsd17b4 <- cptable(~ hsd17b4 | ppara, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
 fatty_acid_beta_oxidation <- cptable(~ fatty_acid_beta_oxidation | hsd17b4,

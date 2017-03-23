@@ -90,15 +90,59 @@ querygrain(setEvidence(bn_test, evidence=list(cholesterol="yes", pregnenolone="y
 
 
 #Queries Using Agnes' data
+
+format_results <- function(x){
+  xdf <- data.frame(matrix(unlist(x), nrow=length(x), byrow=T))
+  rownames(xdf) <- names(x)
+  colnames(xdf) <- c("yes", "no")
+  return(xdf)
+}
+
 #Ketoconazole
-querygrain(setEvidence(bn_test, evidence=list(hydroxyprogesterone="no",
+ketoconazole_results <- querygrain(setEvidence(bn_test, evidence=list(hydroxyprogesterone="no",
                                               androsteinedione="no", testosterone="no",
                                               estrone="no", deoxycortisone="yes",
                                               cortisol="no", deoxycortisol="no")))
+ketoconazole_results_out <- format_results(ketoconazole_results)
+write.table(ketoconazole_results_out, file="ketoconazole_results.txt", sep="\t", row.names=TRUE, col.names=NA)
+
 
 #Imazalil
-querygrain(setEvidence(bn_test, evidence=list(progesterone="yes", hydroxyprogesterone="yes",
+imazalil_results <- querygrain(setEvidence(bn_test, evidence=list(progesterone="yes", hydroxyprogesterone="yes",
                                               cortisol="no", deoxycortisol="no", 
                                               androsteinedione="no", testosterone="no",
                                               estrone="no")))
+imazalil_results_out <- format_results(imazalil_results)
+write.table(imazalil_results_out, file="imazalil_results.txt", sep="\t", row.names=TRUE, col.names=NA)
+
+
+#Fenbuconazole
+fb_results <- querygrain(setEvidence(bn_test, evidence=list(progesterone="yes", hydroxyprogesterone="yes",
+                                                            cortisol="no")))
+fb_results_out <- format_results(fb_results)
+write.table(fb_results_out, file="fenbuconazole_results.txt", sep="\t", row.names=TRUE, col.names=NA)
+
+
+#Difenoconazole
+dif_results <- querygrain(setEvidence(bn_test, evidence=list(hydroxyprogesterone="yes", deoxycorticosterone="no",
+                                                             cortisol="no")))
+dif_results_out <- format_results(dif_results)
+write.table(dif_results_out, file="difenoconazole_results.txt", sep="\t", row.names=TRUE, col.names=NA)
+
+
+#Metconazole
+met_results <- querygrain(setEvidence(bn_test, evidence=list(hydroxyprogesterone="no", deoxycorticosterone="no")))
+met_results_out <- format_results(met_results)
+write.table(met_results_out, file="metconazole_results.txt", sep="\t", row.names=TRUE, col.names=NA)
+
+
+
+
+
+
+
+
+
+
+
 
