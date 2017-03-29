@@ -270,14 +270,18 @@ length(unique(mtc[hitc == 1, chnm]))
 hits <- mtc[hitc == 1]
 hits2 <- na.omit(hits)
 
+extra_data <- NULL
+extra_data$measure <- NULL
+extra_data$yes_no <- NULL
+
 for(i in 1:nrow(hits2)){
-  hits_conv_info <- convert_data(hits2[i])
-  hits2$measure <- hits_conv_info[1]
-  hits2$yes_no <- hits_conv_info[2]
+  hits_conv_info <- convert_data(hits2[i,])
+  extra_data$measure <- c(extra_data$measure, hits_conv_info[1])
+  extra_data$yes_no <- c(extra_data$yes_no, hits_conv_info[2])
 }
 
-hits3 <- hits2[, c(4,14,15)]
-colnames(hits3)[1] <- "chemical_name"
+hits3 <- cbind(hits2[, 4], extra_data$measure, extra_data$yes_no)
+colnames(hits3) <- c("chemical_name", "measure", "yes_no")
   
 # toxcast_data_split <- split(toxcast_data, f=toxcast_data$chemical_name)
 toxcast_data_split <- split(hits3, f=hits3$chemical_name)
