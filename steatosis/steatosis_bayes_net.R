@@ -13,8 +13,8 @@ ppar_alpha <- cptable(~ ppara | fxr+shp+lxr,
 hsd17b4 <- cptable(~ hsd17b4 | ppara, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
 fatty_acid_beta_oxidation <- cptable(~ fatty_acid_beta_oxidation | hsd17b4,
                                      values = c(0.99, 0.01, 0.01, 0.99), levels=yn)
-steatosis <-  cptable(~steatosis | fatty_acid_beta_oxidation, 
-                      values=c(0.01, 0.99, 0.99, 0.01), levels=yn)
+steatosis <-  cptable(~steatosis | cytosolic_fatty_acids, 
+                      values=c(0.99, 0.01, 0.01, 0.99), levels=yn)
 lrh1 <- cptable(~lrh1 | shp,
                 values=c(0.05, 0.95, 0.95, 0.05), levels=yn)
 pi3k <- cptable(~pi3k, values=c(0.50, 0.50), levels=yn)
@@ -51,3 +51,8 @@ bn_test <- grain(plist)
 plot(bn_test)
 querygrain(setEvidence(bn_test, evidence=list(hsd17b4="no")))
 querygrain(setEvidence(bn_test, evidence=list(nrf2="no")))
+querygrain(setEvidence(bn_test, evidence=list(nrf2="yes")))
+querygrain(setEvidence(bn_test, evidence=list(hsd17b4="yes")))
+querygrain(setEvidence(bn_test, evidence=list(lipogenesis="yes", hsd17b4="no")))
+querygrain(setEvidence(bn_test, evidence=list(lipogenesis="yes", hsd17b4="yes")))
+querygrain(setEvidence(bn_test, evidence=list(lipogenesis="yes", nrf2="no", akt="yes")))
