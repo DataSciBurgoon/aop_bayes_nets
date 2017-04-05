@@ -1,4 +1,5 @@
 library(gRain)
+library(data.table)
 
 #Building the Bayes Net
 yn <- c("yes", "no")
@@ -236,9 +237,57 @@ steroidogenesis_bn <- function(evidence){
   return(bn_results)
 }
 
-toxcast_data <- read.table("toxcast_data.txt", sep="\t", header=TRUE)
-toxcast_data_split <- split(toxcast_data, f=toxcast_data$chemical_name)
+convert_data <- function(x){
+  return(switch(x$aenm,
+         CEETOX_H295R_11DCORT_dn = c("deoxycortisol", "no"),
+         CEETOX_H295R_11DCORT_up = c("deoxycortisol", "yes"),
+         CEETOX_H295R_OHPREG_dn = c("hydroxypregnenolone", "no"),
+         CEETOX_H295R_OHPREG_up = c("hydroxypregnenolone", "yes"),
+         CEETOX_H295R_PROG_dn = c("progesterone", "no"),
+         CEETOX_H295R_PROG_up = c("prosterone", "yes"),
+         CEETOX_H295R_OHPROG_dn = c("hydroxyprogesterone", "no"),
+         CEETOX_H295R_OHPROG_up = c("hydroxyprogesterone", "yes"),
+         CEETOX_H295R_ANDR_dn = c("androsteinedione", "no"),
+         CEETOX_H295R_ANDR_up = c("androsteinedione", "yes"),
+         CEETOX_H295R_TESTO_dn = c("testosterone", "no"),
+         CEETOX_H295R_TESTO_up = c("testosterone", "yes"),
+         CEETOX_H295R_CORTISOL_dn = c("cortisol", "no"),
+         CEETOX_H295R_CORTISOL_up = c("cortisol", "yes"),
+         CEETOX_H295R_DOC_dn = c("deoxycortisone", "no"),
+         CEETOX_H295R_DOC_up = c("deoxycortisone", "yes"),
+         CEETOX_H295R_ESTRADIOL_dn = c("estradiol", "no"),
+         CEETOX_H295R_ESTRADIOL_up = c("estradiol", "yes"),
+         CEETOX_H295R_ESTRONE_dn = c("estrone", "no"),
+         CEETOX_H295R_ESTRONE_up = c("estrone", "yes")
+         )
+  )
+}
+
+mtc <- fread("suppl_data/toxsci-15-0570-File009.csv")
+length(unique(mtc$chnm))
+length(unique(mtc[hitc == 1, chnm]))
+
+hits <- mtc[hitc == 1]
+hits2 <- na.omit(hits)
+
+extra_data <- NULL
+extra_data$measure <- NULL
+extra_data$yes_no <- NULL
+
+for(i in 1:nrow(hits2)){
+  hits_conv_info <- convert_data(hits2[i,])
+  extra_data$measure <- c(extra_data$measure, hits_conv_info[1])
+  extra_data$yes_no <- c(extra_data$yes_no, hits_conv_info[2])
+}
+
+hits3 <- cbind(hits2[, 4], extra_data$measure, extra_data$yes_no)
+colnames(hits3) <- c("chemical_name", "measure", "yes_no")
+  
+# toxcast_data_split <- split(toxcast_data, f=toxcast_data$chemical_name)
+toxcast_data_split <- split(hits3, f=hits3$chemical_name)
 toxcast_steroidogenesis_results <- lapply(toxcast_data_split, steroidogenesis_bn)
+
+length(toxcast_steroidogenesis_results)
 
 save(toxcast_steroidogenesis_results, file="toxcast_steroidogenesis_results.RData")
 
