@@ -1,0 +1,282 @@
+---
+title: "Steatosis Bayesian Network Demonstration"
+output: html_notebook
+---
+
+Author: Lyle D. Burgoon, Ph.D.
+
+US Army Engineer Research and Development Center
+
+20 April 2017
+
+## Introduction
+
+Bayesian networks (BNs) provide a means to probabilistically model causation -- leading to odds and probabilities for predictions given certain evidence. BNs are a natural fit for the Adverse Outcome Pathway concept as well -- where causal linkages are built between key events that lead to an adverse outcome.
+
+Here we will demonstrate several uses for BNs in the AOP framework -- we term these AOPBNs -- or AOP Bayesian Networks.
+
+## AOP Bayesian Network for Steatosis
+
+The AOPBN for steatosis is an expert knowledge derived model. I built the model based on the literature and my knowledge of the pathways leading to steatosis. Following is the code to construct the model.
+
+```{r}
+library(gRain)
+
+#Building the Bayes Net
+yn <- c("yes", "no")
+nrf2 <- cptable(~ nrf2, values=c(0.5, 0.5), levels=yn)
+fxr <- cptable(~ fxr | nrf2, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
+shp <- cptable(~ shp | fxr, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
+lxr <- cptable(~ lxr | shp, values=c(0.05, 0.95, 0.95, 0.05), levels=yn)
+ppar_alpha <- cptable(~ ppara | fxr+shp+lxr, 
+                      values=c(0.50, 0.50, 0.50, 0.50, 0.50, 0.50, 0.01, 0.99,
+                               0.99, 0.01, 0.50, 0.50, 0.50, 0.50, 0.01, 0.99),
+                      levels=yn)
+hsd17b4 <- cptable(~ hsd17b4 | ppara, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
+fatty_acid_beta_oxidation <- cptable(~ fatty_acid_beta_oxidation | hsd17b4,
+                                     values = c(0.99, 0.01, 0.01, 0.99), levels=yn)
+steatosis <-  cptable(~steatosis | cytosolic_fatty_acids + fatty_acid_beta_oxidation, 
+                      values=c(0.01, 0.99, 0.01, 0.99, 0.99, 0.01, 0.99, 0.01), levels=yn)
+lrh1 <- cptable(~lrh1 | shp,
+                values=c(0.05, 0.95, 0.95, 0.05), levels=yn)
+pi3k <- cptable(~pi3k, values=c(0.50, 0.50), levels=yn)
+mtorc2 <- cptable(~mtorc2 | ir, values=c(0.99, 0.01, 0.01, 0.99), levels=yn)
+ir <- cptable(~ir, values=c(0.50, 0.50), levels=yn)
+akt <- cptable(~akt | pi3k+mtorc2, values=c(0.95, 0.05, 0.05, 0.95,
+                                            0.95, 0.05, 0.05, 0.95),
+               levels=yn)
+lfabp <- cptable(~lfabp | akt+pi3k, values=c(0.95, 0.05, 0.05, 0.05, 0.50, 0.50, 0.05, 0.95),
+                 levels=yn)
+pparg <- cptable(~pparg | lfabp, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
+fas <- cptable(~fas | lrh1+lxr+pparg, values=c(0.95, 0.05, 0.75, 0.25, 0.75, 0.25, 0.50, 0.50,
+                                               0.75, 0.25, 0.50, 0.50, 0.50, 0.50, 0.01, 0.99),
+               levels=yn)
+mtorc1 <- cptable(~mtorc1 | akt, values=c(0.95, 0.05, 0.05, 0.95), levels=yn)
+apkc <- cptable(~apkc | pi3k, values=c(0.99, 0.01, 0.01, 0.99), levels=yn)
+srebp1 <- cptable(~srebp1 | mtorc1 + apkc, values=c(0.95, 0.05, 0.05, 0.95,
+                                                    0.95, 0.05, 0.05, 0.95),
+                  levels=yn)
+scd1 <- cptable(~scd1 | srebp1, values=c(1, 0, 0, 1), levels=yn)
+lipogenesis <- cptable(~lipogenesis | scd1 + fas, values=c(0.95, 0.05, 0.05, 0.95,
+                                                           0.95, 0.05, 0.05, 0.95),
+                       levels=yn)
+cytosolic_fatty_acids <- cptable(~cytosolic_fatty_acids | lipogenesis + lfabp, 
+                                 values=c(0.99, 0.01, 0.99, 0.01, 0.99, 0.01, 0.01, 0.99),
+                                 levels=yn)
+
+plist <- compileCPT(list(nrf2, fxr, shp, lxr, ppar_alpha, hsd17b4, 
+                         fatty_acid_beta_oxidation, steatosis, lrh1, pi3k, 
+                         mtorc2, ir, akt, lfabp, pparg, fas, mtorc1, apkc, srebp1, scd1, lipogenesis,
+                         cytosolic_fatty_acids))
+bn_test <- grain(plist)
+plot(bn_test)
+```
+
+## Scenario 1: Identifying Sufficient Key Events
+
+In this scenario we will identify those key events that are sufficient to infer the adverse outcome. Under Rothman's idea of sufficient (reviewed and used in [Burgoon et al 2016](http://onlinelibrary.wiley.com/doi/10.1111/risa.12613/abstract), those key events (or simply just one key event) that are sufficient to infer the adverse outcome are the only ones that need to be measured. Key to Rothman's idea is that sufficiency could encompass a suite of key events, not just a single key event.
+
+```{r}
+#This function runs the query on the BN to see if steatosis
+test_node_sufficiency <- function(node_status_list, bayes_net){
+  return(querygrain(setEvidence(bayes_net, evidence=node_status_list))$steatosis)
+}
+
+nodes <- c("nrf2", "fxr", "shp", "lxr", "ppar_alpha", "hsd17b4", "fatty_acid_beta_oxidation", 
+           "lrh1", "pi3k", "mtorc2", "ir", 'akt', 'lfabp', 'pparg', "fas", 
+           "mtorc1", "apkc", "srebp1", "scd1", "lipogenesis", "cytosolic_fatty_acids")
+
+steatosis_status_node_yes <- NULL
+steatosis_status_node_no <- NULL
+
+for(i in 1:length(nodes)){
+  x_yes <- as.list("yes")
+  names(x_yes) <- nodes[i]
+  steatosis_status_node_yes <- c(steatosis_status_node_yes, test_node_sufficiency(x_yes, bn_test)[1])
+  
+  x_no <- as.list("no")
+  names(x_no) <- nodes[i]
+  steatosis_status_node_no <- c(steatosis_status_node_no, test_node_sufficiency(x_no, bn_test)[1])
+}
+
+names(steatosis_status_node_yes) <- nodes
+names(steatosis_status_node_no) <- nodes
+
+results_table <- cbind(ke_activated = steatosis_status_node_yes, ke_inactivated = steatosis_status_node_no)
+results_table
+```
+
+Probabilistically speaking, for something to be sufficient to infer something else, the probability has to be really close to 1. Realistically, a probability of 1 is not common, as we couch our uncertainty in the probabilities. Thus, I generally use a rule of thumb that I am comfortable with. For screening purposes, I want to be fairly accurate, but I also need to accommodate a reasonable amount of uncertainty, thus I generally choose 95% as my cut-off to determine sufficiency. In other words, so long as the probability is at least 95%, I feel comfortable making a sufficiency call. Others may not be comfortable with that, and may want a different level. However, in biological science we tend to accept 5% uncertainty, so this seems reasonable here.
+
+Based on the 95% rule, the sufficient key events are fatty acid beta oxidation and hsd17b4. Specifically, if we measure fatty acid beta oxidation, and we see it inactivated, we can be 99% certain that there will be steatosis. Likewise, if we only measure hsd17b4 we can be 98% certain there will be steatosis.
+
+This calls into question the notion of measuring only the molecular initiating event. We can clearly see that measuring key events such as nrf2, insulin receptor (ir), or pi3k will result in a great deal of uncertainty, and that these are not by themselves sufficient. For instance, inactivation of nrf2 provides only 86% certainty that steatosis will occur, while ir or pi3k only provide 51% certainty apiece. 
+
+## Scenario 2: Identifying Sufficient Key Events
+
+The next question to address is whether or not there are any groups of key events that together can lead to a more certain steatosis prediction -- a so-called sufficient group of key events. Mathematically speaking, the most optimally sufficient group of key events must also contain fatty acid beta oxidation or hsd17b4. In the next set of analyses, we will demonstrate this.
+
+In the next analysis, we will look at the probability of steatosis given evidence that every key event is activated/inactivated to maximally lead to steatosis. 
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(nrf2="no",
+                                              fxr="no",
+                                              shp="no",
+                                              lxr="yes",
+                                              ppar_alpha="no",
+                                              hsd17b4="no",
+                                              fatty_acid_beta_oxidation="no",
+                                              lrh1="yes",
+                                              pi3k="yes",
+                                              mtorc2="yes",
+                                              ir="yes",
+                                              akt="yes",
+                                              lfabp="yes",
+                                              pparg="yes",
+                                              fas="yes",
+                                              mtorc1="yes",
+                                              apkc="yes",
+                                              srebp1="yes",
+                                              scd1="yes",
+                                              lipogenesis="yes",
+                                              cytosolic_fatty_acids="yes")))$steatosis
+```
+
+We can see that if we have complete information for the entire AOPBN, we have at most 99% certainty of steatosis. Note, this means that even if we have complete information, we are not more certain about steatosis than if we had only measured fatty acid beta oxidation.
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(nrf2="no",
+                                              fxr="no",
+                                              shp="no",
+                                              lxr="yes",
+                                              ppar_alpha="no",
+                                              lrh1="yes",
+                                              pi3k="yes",
+                                              mtorc2="yes",
+                                              ir="yes",
+                                              akt="yes",
+                                              lfabp="yes",
+                                              pparg="yes",
+                                              fas="yes",
+                                              mtorc1="yes",
+                                              apkc="yes",
+                                              srebp1="yes",
+                                              scd1="yes",
+                                              lipogenesis="yes",
+                                              cytosolic_fatty_acids="yes")))$steatosis
+```
+
+If we don't measure hsd17b4 and fatty acid beta oxidation, but we measure all of the other key events, we have only 92% certainty of steatosis. This further demonstrates the importance of both hsd17b4 and fatty acid beta oxidation.
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(nrf2="no",
+                                              fxr="no",
+                                              shp="no",
+                                              lxr="yes",
+                                              ppar_alpha="no",
+                                              hsd17b4="no",
+                                              lrh1="yes",
+                                              pi3k="yes",
+                                              mtorc2="yes",
+                                              ir="yes",
+                                              akt="yes",
+                                              lfabp="yes",
+                                              pparg="yes",
+                                              fas="yes",
+                                              mtorc1="yes",
+                                              apkc="yes",
+                                              srebp1="yes",
+                                              scd1="yes",
+                                              lipogenesis="yes",
+                                              cytosolic_fatty_acids="yes")))$steatosis
+```
+
+By measuring everything and hsd17b4, but not measuring fatty acid beta oxidation we have 98% certainty of steatosis. Again, this is due to the causal network. Measuring all of the key events and hsd17b4 gave us no more information than just measuring hsd17b4 itself. This is the nature of causal network theory.
+
+
+## Scenario 3: Forensic Mode -- Predicting the Mode of Action
+
+AOPBNs can also be used to predict the mode of action a chemical is using to cause an adverse outcome -- we call this forensic mode. Generally speaking, forensic mode can be thought of moving backwards from the adverse outcome towards the molecular initiating event (MIE).
+
+AOPBNs will generally have several different potential MIEs. In the case of the steatosis network, each of the KEs could potentially also serve as an MIE -- there are known or potential pharmacological inhibitors and activators for each of these KEs (i.e., they are all druggable targets). 
+
+Forensic mode is most useful after one has predicted that the adverse outcome is likely to occur. The best strategy would leverage the network topology, such as an approach that focuses on incoming hubs, shortest paths, or community structures. 
+
+An incoming hub is a node that has a large number of inputs (or parent nodes). These hubs serve as information integrators, and due to the fact that most networks have relatively few hubs, it is more economical to measure them compared to measuring every KE. The caveat here is that we want to measure hubs that tend to be in different communities.
+
+For steatosis, these are 2 KEs with 3 inputs -- PPARa and FAS. Measuring both of these simultaneously will yield information about the pathway that starts at Nrf2 and the pathway that starts at PI3K. If PPARa is inhibited, but FAS is activated, then more than likely the Nrf2 pathway is not activated/inhibited, as that would help to decrease FAS activation. This would suggest that components in the PI3K pathway are more likely to be activated, suggesting PPAR gamma activation is regulating FAS. 
+
+Working backwards, one may want to concentrate on the KEs with 2 inputs that are upstream of FAS. This includes LFABP and AKT.
+
+Another approach is to identify the bridges that connect the adverse outcome to network communities within the larger network. A community is a group of nodes which are more connected to each other than to other parts of the network. For instance, FXR-SHP-PPARa form one community. PI3K-AKT-mTORC1-SREBP-1-aPKC form another community. HSD17b4 serves as the bridge that connects the FXR-SHP-PPARa community to steatosis. LFABP serves as one bridge that connects the PI3K-AKT-mTORC1-SREBP-1-aPKC community to steatosis. SCD1 is another bridge that connects the PI3K-AKT-mTORC1-SREBP-1-aPKC community to steatosis. 
+
+I prefer the community-based approach over the hub-based approach.
+
+### Example: Where is the Chemical Likely Perturbing?
+
+In this example, we know that the chemical causes steatosis clinically. What we do not know is the potential mechanism(s). We will use the community approach to determine the potential mode of action. We will start by measuring the bridge KEs -- that is, HSD17b4, LFABP and SCD1.
+
+We measured and found the following:
+
+* HSD17b4 = inactive
+* LFABP = inactive
+* SCD1 = active
+
+We now run this information through the AOPBN. But we want to return the entire query, not just the steatosis part.
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(hsd17b4="no",
+                                              lfabp="no",
+                                              scd1="yes")))
+
+```
+
+
+Here we can see that the probability of steatosis is 98% -- this is consistent with what we saw clinically in our example. Also, based on the evidence we provided, the model suggests that the FXR-SHP-PPARa community is likely inhibited at 90%, 90%, and 95%, respectively. The members of the PI3K-AKT-mTORC1-SREBP-1-aPKC are a little more complicated. PI3K is 70% likely to be inactivated, there is a 57% chance that AKT is inactivated, mTORC1 is likely activated at 71%, SREBP-1 is likely active at 100%, and aPKC is likely inactive/inhibited at 57%.
+
+What this suggests is that the chemical may be operating through a relatively complicated mechanism involving HSD17b4, and SCD1. The MIE related to the HSD17b4 KE may be inhibition of HSD17b4 or it may be upstream of it. Thus, further analysis of the FXR-SHP-PPARa community is warranted.
+
+The SCD1 and LFABP evidence suggests that PI3K, AKT and aPKC are not likely to be involved. However, the MIE may involve SCD1, SREBP1, or mTORC1. In this case, further analysis of these KEs is warranted.
+
+However, we need to be careful -- we know that our understanding of molecular disease biology is not complete. Thus, we should make the open world assumption -- that is, we should assume that there are potential explanations not captured in our AOPBN. It could be that there are molecular mechanisms not captured in the AOPBN that are regulating these KEs. Through further analysis we could identify if this is the case.
+
+
+## Scenario 4: Complex Mixtures, Stressor Mixtures and Susceptibility
+
+Rarely do we encounter pure contaminants outside of the laboratory. Thus, we need to consider how complex mixtures may also participate in AOPBNs as well as how susceptibility factors and other stressors (e.g., psychosocial stressors) may also participate in the biological response. This has importance in both ecological and human health.
+
+One way to make predictions using AOPBNs is to do a completely theoretical exposure. We could start with protein docking models for all of the proteins in our KEs. For instance, we might find that benzo[k]flouranthene (BkF) is a direct or allosteric inhibitor of HSD17b4. In our mixture, we might also find that benzo[a]pyrene (BaP) has much lower affinity for binding to PPARa, but benz[a]anthracene (BaA) has very high affinity for PPARa. If we are dealing with a contaminated site that is primarily BaA, with less BkF and BaP then we would anticipate the following:
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(ppar_alpha = "yes")))$steatosis
+
+```
+
+According to this analysis, if the contaminated site is primarily BaA, then we are as likely to see steatosis as we are to not see it.
+
+If, on the other hand, the site were evenly split between BaA, BaP and BkF, then our query of the model would probably look more like ppar_alpha being activated (since BaA has more affinity for PPARa than BaP it is unlikely that BaP will outcompete BaA for binding to PPARa) and BkF would likely inhibit the hsd17b4 activity.
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(ppar_alpha = "yes", hsd17b4="no")))$steatosis
+```
+
+In this case, the likelihood of steatosis is quite high at 98%.
+
+If we had a situation where BaP concentrations were much higher than BaA, and there was relatively little BkF, then we might anticipate a situation where PPARa is not likely activated, and hsd17b4 is still active.
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(ppar_alpha="no")))$steatosis
+```
+
+In this scenario, the likelihood of seeing steatosis is just about as likely as not seeing steatosis.
+
+Using similar types of logic, we can assign evidence as to what may be happening at a KE based on genetic and other factors. For instance, there may be a mutation that causes hsd17b4 to have lower affinity for BkF. Or there may be a mutation that causes PPARa to bind more strongly to its DNA binding sites, thus increasing the likelihood of transcription following activation by an agonist. We can model these types of situations by turning the evidence on or off more often.
+
+We could also model entire populations. In that case, rather than have simple probability tables, we would use probability distributions. We would then perform monte carlo analysis to generate a population of individuals, and look at how the chemicals are impacting each member of the population. These types of analyses are more computationally intensive to implement than these more simple Bayesian networks. 
+
+
+
+
+
+
+
