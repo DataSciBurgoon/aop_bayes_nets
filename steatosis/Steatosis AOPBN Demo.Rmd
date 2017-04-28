@@ -110,6 +110,12 @@ Probabilistically speaking, for something to be sufficient to infer something el
 
 Based on the 95% rule, the sufficient key events are fatty acid beta oxidation and hsd17b4. Specifically, if we measure fatty acid beta oxidation, and we see it inactivated, we can be 99% certain that there will be steatosis. Likewise, if we only measure hsd17b4 we can be 98% certain there will be steatosis.
 
+Next we'll explore what the probabilities are for the full network when hsd17b4 is inactive.
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(hsd17b4="no")))
+```
+
 This calls into question the notion of measuring only the molecular initiating event. We can clearly see that measuring key events such as nrf2, insulin receptor (ir), or pi3k will result in a great deal of uncertainty, and that these are not by themselves sufficient. For instance, inactivation of nrf2 provides only 86% certainty that steatosis will occur, while ir or pi3k only provide 51% certainty apiece. 
 
 ## Scenario 2: Identifying Sufficient Key Events
@@ -275,8 +281,46 @@ Using similar types of logic, we can assign evidence as to what may be happening
 We could also model entire populations. In that case, rather than have simple probability tables, we would use probability distributions. We would then perform monte carlo analysis to generate a population of individuals, and look at how the chemicals are impacting each member of the population. These types of analyses are more computationally intensive to implement than these more simple Bayesian networks. 
 
 
+## Scenario 5: A Case Where There Is No Steatosis
 
+It's important to demonstrate that the model doesn't always result in steatosis. We had one example in Scenario 4 where the likelihood of steatosis was equivocal. But what about an example where there is aboslutely no chance of steatosis.
 
+One such scenario is where fatty acid beta oxidation is highly active.
 
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(hsd17b4="yes")))$steatosis
+```
 
+Here we can clearly see that hsd17b4 activation leads to a case where there will be no steatosis. The probabilities across the network look like:
 
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(hsd17b4="yes")))
+```
+
+Another example would be the case of an LXR antagonist:
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(lxr="no")))$steatosis
+```
+
+The full network probabilities for the LXR antagonist scenario are:
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(lxr="no")))
+```
+
+Although not nearly as definitive as the hsd17b4 activation, this just demonstrate that steatosis is not likely to occur. 
+
+If we had a situation where hsd17b4 activity were high and LXR was antagonized, then we would expect there to be no steatosis:
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(hsd17b4="yes", lxr="no")))$steatosis
+```
+
+However, note that the additional information from LXR does not tell us anything more than what we already knew as a result of assaying hsd17b4. In other words, hsd17b4 is clearly sufficient to infer what is going on with respect to steatosis. 
+
+The full probability table follows:
+
+```{r}
+querygrain(setEvidence(bn_test, evidence=list(hsd17b4="yes", lxr="no")))
+```
